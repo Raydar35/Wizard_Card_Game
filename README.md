@@ -1,4 +1,4 @@
-# Wizard Card Game (Prototype)
+# WizBiz Card Game (Prototype)
 
 ## Overview
 Small Java/Maven prototype of a turn-based wizard card game. Player and Enemy draw and play `SpellCard`s from a shared `Deck`. Core responsibilities are split across a simple state machine (`BattleState`) and a `GameController` that coordinates model and UI.
