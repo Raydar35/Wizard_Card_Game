@@ -1,5 +1,67 @@
 # WizBiz Card Game (Prototype)
 
+## Quick status
+This is a small Java/Maven prototype that uses JavaFX for the UI. The project now uses OS-activated Maven profiles to select platform-specific JavaFX native artifacts so Windows and macOS collaborators can build and run without pulling each other's native jars.
+
+## Build & run (recommended)
+Use Maven — the project contains OS-activated profiles that automatically select the correct JavaFX platform classifier for your machine.
+
+Prerequisites
+- JDK 17 (match the `maven.compiler.release` property). If your team uses a newer JDK, update `pom.xml`'s properties together.
+- Maven 3.8+ (3.9 recommended)
+
+Windows (quick)
+1. Open a PowerShell terminal and (optional) purge old OpenJFX natives if you previously had mismatched platform jars:
+
+```powershell
+Remove-Item -Recurse -Force "$env:USERPROFILE\.m2\repository\org\openjfx"
+```
+
+2. Build and run with Maven (the `windows` profile is auto-activated):
+
+```powershell
+mvn -U clean package -DskipTests
+mvn javafx:run
+```
+
+macOS (Intel) (quick)
+```bash
+rm -rf ~/.m2/repository/org/openjfx
+mvn -U clean package -DskipTests
+mvn javafx:run
+```
+
+macOS (Apple Silicon / aarch64)
+If auto-detection on macOS fails for Apple Silicon, run explicitly with the `mac-aarch64` profile:
+
+```bash
+mvn -Pmac-aarch64 -U clean package -DskipTests
+mvn -Pmac-aarch64 javafx:run
+```
+
+What the pom changes do
+- The `pom.xml` now defines a property `javafx.platform.classifier` and several OS-activated profiles (`windows`, `linux`, `mac`, `mac-aarch64`). Each JavaFX dependency uses `${javafx.platform.classifier}` as its classifier so Maven downloads the correct native binaries for the current OS.
+- This prevents `no suitable pipeline found` and similar native loading errors that occur when platform-specific native jars for another OS (e.g., mac jars) exist on the module path while running on your machine.
+
+IntelliJ tips
+- Prefer running `mvn javafx:run` from IntelliJ (Add a Maven run configuration or use the Maven tool window). The javafx-maven-plugin will set up the module path and native loading correctly.
+- If you run via an Application run configuration, add these VM options (Windows example):
+
+--add-modules=javafx.controls,javafx.fxml -Dprism.verbose=true
+
+If graphics initialization fails and you need a temporary workaround, add the software fallback:
+
+-Dprism.order=sw
+
+Note: `-Dprism.order=sw` forces software rendering — it avoids a crash but may degrade graphics performance. Use only to test while diagnosing native mismatch issues.
+
+Troubleshooting
+- If you see "Error initializing QuantumRenderer: no suitable pipeline found" or native load errors, ensure:
+  1. You have deleted/repo-purged any `org.openjfx` jars that were downloaded for the wrong OS (see commands above).
+  2. Reimport the Maven project in IntelliJ and run `mvn -U clean package` again.
+  3. Run `mvn javafx:run -Dprism.verbose=true` to get detailed native loading logs.
+- If you see compilation errors about an unsupported source/target version, make sure your local JDK matches the `maven.compiler.release` property in `pom.xml` or update that property to your team's standard.
+
 ## Overview
 Small Java/Maven prototype of a turn-based wizard card game. Player and Enemy draw and play `SpellCard`s from a shared `Deck`. Core responsibilities are split across a simple state machine (`BattleState`) and a `GameController` that coordinates model and UI.
 

@@ -24,13 +24,12 @@ import javafx.scene.text.FontPosture;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.awt.GraphicsEnvironment;
 import java.io.InputStream;
 import java.util.Objects;
 
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-
-import java.awt.*;
 
 /**
  * Professional Wizardly UI - Fully Polished & Consistent
@@ -75,7 +74,7 @@ public class GameUI extends Application {
     private EnemyCustomization enemyCustomization;
 
     // Preview elements
-    private Label previewIcon;
+    private ImageView previewIcon;
     private Circle previewCircle;
 
     // Game state
@@ -431,17 +430,23 @@ public class GameUI extends Application {
             if (in != null) {
                 Image faceImg = new Image(in);
 
-                // Create ImageView for face
+                // Create ImageView for face and bind its size to the iconCircle diameter so it adapts
                 ImageView faceImageView = new ImageView(faceImg);
-                faceImageView.setFitWidth(90);  // Increased from 72
-                faceImageView.setFitHeight(90); // Increased from 72
+                faceImageView.fitWidthProperty().bind(iconCircle.radiusProperty().multiply(2));
+                faceImageView.fitHeightProperty().bind(iconCircle.radiusProperty().multiply(2));
                 faceImageView.setPreserveRatio(true);
                 faceImageView.setSmooth(true);  // Smooth rendering
 
-                // Create rectangular clip instead of circular to show more of image
-                Rectangle imageClip = new Rectangle(90, 90);
-                imageClip.setArcWidth(20);  // Rounded corners
-                imageClip.setArcHeight(20);
+                // Create a circular clip whose radius is bound to the iconCircle radius so clipping adapts
+                Circle imageClip = new Circle();
+                imageClip.radiusProperty().bind(iconCircle.radiusProperty());
+                // Keep clip centered on the actual image bounds
+                faceImageView.boundsInLocalProperty().addListener((obs, oldB, newB) -> {
+                    double w = newB.getWidth();
+                    double h = newB.getHeight();
+                    imageClip.setCenterX(w / 2.0);
+                    imageClip.setCenterY(h / 2.0);
+                });
                 faceImageView.setClip(imageClip);
 
                 System.out.println("Loaded face image: " + facePath + " for " + (isPlayer ? "player" : "enemy"));
@@ -454,8 +459,8 @@ public class GameUI extends Application {
                 floatAnim.setAutoReverse(true);
                 floatAnim.play();
 
-                // Add background circle and image (no outer ring since we're using rectangle now)
-                iconPane.getChildren().addAll(iconCircle, faceImageView);
+                // Add outer ring, background circle and image so the image appears inside the circular frame
+                iconPane.getChildren().addAll(outerRing, iconCircle, faceImageView);
             } else {
                 System.out.println("WARNING: Could not find face image: " + facePath);
             }
@@ -1027,24 +1032,38 @@ public class GameUI extends Application {
         previewCircle.setStrokeWidth(3);
         previewCircle.setFill(Color.rgb(50, 50, 80));
 
-        // Preview image container
-        previewIcon = new Label();
-        previewIcon.setMinSize(140, 140);
+        // ImageView for displaying the actual character face (clipped to circle)
+        previewIcon = new ImageView();
+        // bind preview image size to the preview circle diameter so it adapts automatically
+        previewIcon.fitWidthProperty().bind(previewCircle.radiusProperty().multiply(2));
+        previewIcon.fitHeightProperty().bind(previewCircle.radiusProperty().multiply(2));
+        previewIcon.setPreserveRatio(true);
+        previewIcon.setSmooth(true);
 
-        // ImageView for displaying the actual character face
-        ImageView faceImg = new ImageView();
-        faceImg.setFitWidth(140);
-        faceImg.setFitHeight(140);
-        faceImg.setPreserveRatio(true);
+        // Circular clip for the preview image bound to the previewCircle radius
+        Circle previewClip = new Circle();
+        previewClip.radiusProperty().bind(previewCircle.radiusProperty());
+        previewIcon.boundsInLocalProperty().addListener((obs, oldB, newB) -> {
+            double w = newB.getWidth();
+            double h = newB.getHeight();
+            previewClip.setCenterX(w / 2.0);
+            previewClip.setCenterY(h / 2.0);
+        });
+        previewIcon.setClip(previewClip);
 
-        // Attach ImageView to label
-        previewIcon.setGraphic(faceImg);
+        // Stack the circle background and the clipped image so the image appears inside the circle
+        StackPane previewStack = new StackPane(previewCircle, previewIcon);
+        // make previewStack size adapt to previewCircle radius
+        previewStack.minWidthProperty().bind(previewCircle.radiusProperty().multiply(2));
+        previewStack.minHeightProperty().bind(previewCircle.radiusProperty().multiply(2));
+        previewStack.maxWidthProperty().bind(previewCircle.radiusProperty().multiply(2));
+        previewStack.maxHeightProperty().bind(previewCircle.radiusProperty().multiply(2));
 
         Label text = new Label("Your Appearance");
         text.setFont(Font.font("Georgia", FontWeight.BOLD, 16));
         text.setTextFill(Color.LIGHTGRAY);
 
-        box.getChildren().addAll(previewCircle, previewIcon, text);
+        box.getChildren().addAll(previewStack, text);
 
         return box;
     }
@@ -1273,8 +1292,8 @@ public class GameUI extends Application {
             Image img = new Image(Objects.requireNonNull(in,
                     "Image not found at: " + path));
 
-            // Apply to preview icon
-            ((ImageView) previewIcon.getGraphic()).setImage(img);
+            // Apply to preview ImageView
+            if (previewIcon != null) previewIcon.setImage(img);
 
         } catch (Exception e) {
             System.out.println("FAILED TO LOAD IMAGE: " + path);
@@ -1730,6 +1749,34 @@ public class GameUI extends Application {
     }
 
     public static void main(String[] args) {
+        // Set a safe default prism pipeline order based on OS to improve cross-platform reliability.
+        // We prefer the native GPU pipeline first, then fall back to software (sw) if necessary.
+        String os = System.getProperty("os.name", "").toLowerCase();
+        // If we're in a headless environment (no display), force software pipeline early
+        boolean headless = GraphicsEnvironment.isHeadless();
+        if (headless) {
+            System.setProperty("prism.order", "sw");
+            System.out.println("[GameUI] Headless environment detected — forcing software rendering (prism.order=sw)");
+        } else {
+            if (os.contains("mac")) {
+                // macOS: prefer ES2/Metal path (es2 works across many mac JVMs), then software
+                System.setProperty("prism.order", "es2,sw");
+            } else if (os.contains("win")) {
+                // Windows: prefer Direct3D then software
+                System.setProperty("prism.order", "d3d,sw");
+            } else {
+                // Other platforms (Linux etc.) - prefer ES2 then software
+                System.setProperty("prism.order", "es2,sw");
+            }
+        }
+
+        // Helpful verbose flag can be enabled when debugging rendering issues.
+        // System.setProperty("prism.verbose", "true");
+
+        System.out.println("[GameUI] OS detected: " + os + " | prism.order=" + System.getProperty("prism.order"));
+
+        // Launch JavaFX application. If users still hit pipeline errors they can try setting
+        // -Dprism.order=sw on the java command line or we can adjust here to force software.
         launch(args);
     }
 }
