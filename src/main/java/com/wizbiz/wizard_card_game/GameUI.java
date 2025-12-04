@@ -75,6 +75,8 @@ public class GameUI extends Application {
 
     // Preview elements
     private ImageView previewIcon;
+    // Preview hat overlay (shows hat in customization preview)
+    private ImageView previewHatIcon;
     private Circle previewCircle;
 
     // Game state
@@ -151,7 +153,7 @@ public class GameUI extends Application {
 
         // Hat selection
         VBox hatBox = createEnhancedComboBox("🎩 Headwear", new String[]{
-                "Pointy Hat 🎩", "Wide Brim 👒", "Crown 👑", "Hood 🧢", "Top Hat 🎓"
+                "Pointy Hat 🎩", "Wide Brim 👒", "Top  👑", "Hood 🧢", "Top Hat 🎓"
         });
         ComboBox<String> hatCombo = (ComboBox<String>) ((HBox) hatBox.getChildren().get(1)).getChildren().get(0);
 
@@ -461,6 +463,18 @@ public class GameUI extends Application {
 
                 // Add outer ring, background circle and image so the image appears inside the circular frame
                 iconPane.getChildren().addAll(outerRing, iconCircle, faceImageView);
+
+                // Hat overlay (bound to iconCircle). Slightly wider than circle and offset upward.
+                ImageView hatView = addHatOverlay(iconPane, iconCircle, 1.2, -0.9);
+                // Set hat image for this character (player or enemy) and log result
+                String hatPath = isPlayer ? playerCustomization.getHatImagePath() : enemyCustomization.getHatImagePath();
+                boolean hatOk = setHatImage(hatView, hatPath);
+                if (!hatOk) {
+                    String who = isPlayer ? "player" : "enemy";
+                    String msg = "[HAT] Could not load hat for " + who + ": " + hatPath + "\n";
+                    System.out.println(msg.trim());
+                    if (logArea != null) logArea.appendText(msg);
+                }
             } else {
                 System.out.println("WARNING: Could not find face image: " + facePath);
             }
@@ -482,6 +496,17 @@ public class GameUI extends Application {
             floatAnim.play();
 
             iconPane.getChildren().addAll(outerRing, iconCircle, fallbackIcon);
+
+            // Still show hat overlay even if face image missing
+            ImageView hatView = addHatOverlay(iconPane, iconCircle, 1.2, -0.9);
+            String hatPath = isPlayer ? playerCustomization.getHatImagePath() : enemyCustomization.getHatImagePath();
+            boolean hatOk = setHatImage(hatView, hatPath);
+            if (!hatOk) {
+                String who = isPlayer ? "player" : "enemy";
+                String msg = "[HAT] Could not load hat for " + who + ": " + hatPath + "\n";
+                System.out.println(msg.trim());
+                if (logArea != null) logArea.appendText(msg);
+            }
         }
 
         String displayName = isPlayer ?
@@ -1053,11 +1078,9 @@ public class GameUI extends Application {
 
         // Stack the circle background and the clipped image so the image appears inside the circle
         StackPane previewStack = new StackPane(previewCircle, previewIcon);
-        // make previewStack size adapt to previewCircle radius
-        previewStack.minWidthProperty().bind(previewCircle.radiusProperty().multiply(2));
-        previewStack.minHeightProperty().bind(previewCircle.radiusProperty().multiply(2));
-        previewStack.maxWidthProperty().bind(previewCircle.radiusProperty().multiply(2));
-        previewStack.maxHeightProperty().bind(previewCircle.radiusProperty().multiply(2));
+
+        // Add hat overlay for preview (so preview shows the selected hat)
+        previewHatIcon = addHatOverlay(previewStack, previewCircle, 1.2, -0.9);
 
         Label text = new Label("Your Appearance");
         text.setFont(Font.font("Georgia", FontWeight.BOLD, 16));
@@ -1294,6 +1317,16 @@ public class GameUI extends Application {
 
             // Apply to preview ImageView
             if (previewIcon != null) previewIcon.setImage(img);
+
+            // Also attempt to set the preview hat image so setHatImage logs success/failure
+            if (previewHatIcon != null) {
+                boolean ok = setHatImage(previewHatIcon, tempCustomization.getHatImagePath());
+                if (!ok) {
+                    String msg = "[HAT] Preview hat not found: " + tempCustomization.getHatImagePath() + "\n";
+                    System.out.println(msg.trim());
+                    if (logArea != null) logArea.appendText(msg);
+                }
+            }
 
         } catch (Exception e) {
             System.out.println("FAILED TO LOAD IMAGE: " + path);
@@ -1778,5 +1811,51 @@ public class GameUI extends Application {
         // Launch JavaFX application. If users still hit pipeline errors they can try setting
         // -Dprism.order=sw on the java command line or we can adjust here to force software.
         launch(args);
+    }
+
+    // Helper: add a hat overlay ImageView to the given StackPane and bind its size/position to the circle
+    private ImageView addHatOverlay(StackPane container, Circle iconCircle, double hatScale, double yOffsetRatio) {
+        ImageView hatView = new ImageView();
+        hatView.setPreserveRatio(true);
+        // Width = circle diameter * hatScale
+        hatView.fitWidthProperty().bind(iconCircle.radiusProperty().multiply(2 * hatScale));
+        // Align to top-center so it sits above the face
+        StackPane.setAlignment(hatView, Pos.TOP_CENTER);
+        // Vertical offset (negative moves up). Bind to radius so it scales.
+        hatView.translateYProperty().bind(iconCircle.radiusProperty().multiply(yOffsetRatio));
+        // Add to container (on top)
+        container.getChildren().add(hatView);
+        return hatView;
+    }
+
+    private boolean setHatImage(ImageView hatView, String resourcePath) {
+        if (hatView == null) return false;
+        if (resourcePath == null || resourcePath.isEmpty()) {
+            hatView.setImage(null);
+            return false;
+        }
+        try (InputStream in = getClass().getResourceAsStream(resourcePath)) {
+            if (in == null) {
+                // resource missing
+                hatView.setImage(null);
+                String msg = "[HAT] Resource not found: " + resourcePath + "\n";
+                System.out.println(msg.trim());
+                if (logArea != null) logArea.appendText(msg);
+                return false;
+            }
+            Image img = new Image(in);
+            hatView.setImage(img);
+            // Log success so hat loads are visible in the same way face loads are
+            String success = "[HAT] Loaded: " + resourcePath + "\n";
+            System.out.println(success.trim());
+            if (logArea != null) logArea.appendText(success);
+            return true;
+        } catch (Exception e) {
+            hatView.setImage(null);
+            String msg = "[HAT] Failed to load: " + resourcePath + " -> " + e.getMessage() + "\n";
+            System.out.println(msg.trim());
+            if (logArea != null) logArea.appendText(msg);
+            return false;
+        }
     }
 }

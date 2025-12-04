@@ -129,8 +129,16 @@ public class EnemyCustomization {
         };
     }
 
-    public String getHatImagePath() {
-        return "/images/hats/" + hatType + ".png";
+    public String getHatImagePath() { if (hatType == null || hatType.isEmpty()) return "/images/hats/TopHat.jpg";
+        if (hatType.contains(".")) return "/images/hats/" + hatType;
+        return switch (hatType) {
+            case "pointy_hat" -> "/images/hats/PointyHat.jpg";
+            case "wide_brim_hat" -> "/images/hats/WideBrim.jpg";
+            case "hood" -> "/images/hats/Hood.jpg";
+            case "top_hat" -> "/images/hats/TopHat.jpg";
+            case "crown" -> "/images/hats/TopHat.jpg";
+            default -> "/images/hats/TopHat.jpg";
+        };
     }
 
     public String getRobeImagePath() {

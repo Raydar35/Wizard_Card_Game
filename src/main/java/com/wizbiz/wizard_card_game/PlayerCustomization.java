@@ -72,7 +72,21 @@ public class PlayerCustomization {
      * Get the file path for the hat image
      */
     public String getHatImagePath() {
-        return "/images/hats/" + hatType + ".png";
+        if (hatType == null || hatType.isEmpty()) return "/images/hats/TopHat.jpg";
+        // If caller already provided a filename (with extension), use it directly
+        if (hatType.contains(".")) {
+            return "/images/hats/" + hatType;
+        }
+
+        // Map internal tokens to the exact resource filenames you provided (jpg)
+        return switch (hatType) {
+            case "pointy_hat" -> "/images/hats/PointyHat.jpg";
+            case "wide_brim_hat" -> "/images/hats/WideBrim.jpg";
+            case "hood" -> "/images/hats/Hood.jpg";
+            case "top_hat" -> "/images/hats/TopHat.jpg";
+            case "crown" -> "/images/hats/TopHat.jpg"; // fallback to TopHat for crown
+            default -> "/images/hats/TopHat.jpg";
+        };
     }
 
     /**
