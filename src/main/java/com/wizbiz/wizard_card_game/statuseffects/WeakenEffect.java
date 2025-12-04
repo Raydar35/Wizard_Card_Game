@@ -31,8 +31,4 @@ public class WeakenEffect implements StatusEffect {
             this.turnsLeft = ((WeakenEffect) other).turnsLeft;
         }
     }
-
-    public int getTurnsLeft() {
-        return turnsLeft;
-    }
 }

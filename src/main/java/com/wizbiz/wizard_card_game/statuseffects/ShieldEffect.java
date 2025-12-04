@@ -25,14 +25,4 @@ public class ShieldEffect implements StatusEffect {
             this.shieldPoints = this.maxShieldPoints;
         }
     }
-
-    public int absorbDamage(int incomingDamage) {
-        int absorbed = Math.min(shieldPoints, incomingDamage);
-        shieldPoints -= absorbed;
-        return incomingDamage - absorbed;
-    }
-
-    public int getShieldPoints() {
-        return shieldPoints;
-    }
 }
