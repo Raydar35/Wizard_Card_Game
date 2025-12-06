@@ -1,4 +1,4 @@
-# WizBiz Card Game (Prototype)
+# WizBiz Card Game 
 
 ## Quick status
 This is a small Java/Maven prototype that uses JavaFX for the UI. The project now uses OS-activated Maven profiles to select platform-specific JavaFX native artifacts so Windows and macOS collaborators can build and run without pulling each other's native jars.
