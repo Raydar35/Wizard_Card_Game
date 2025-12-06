@@ -31,7 +31,11 @@ public class GameController {
     // SINGLETON - get instance (creates if needed)
     public static GameController getInstance() {
         if (instance == null) {
-            instance = new GameController();
+            synchronized (GameController.class) {
+                if (instance == null) {
+                    instance = new GameController();
+                }
+            }
         }
         return instance;
     }
