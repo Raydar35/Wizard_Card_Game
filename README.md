@@ -88,3 +88,5 @@ This project was developed in collaboration with two other students as part of a
 4. Run the project (from GameUI)
 
 ## Video Showcase
+
+https://github.com/user-attachments/assets/e0a82317-d308-4dfd-a7d7-b643c999ced7
